@@ -1,4 +1,4 @@
-// server.js - Fixed version for Render
+// server.js - Fixed version with ChemicalJS static files
 import { ChemicalServer } from "chemicaljs";
 import express from "express";
 import { createServer } from 'http';
@@ -9,26 +9,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const server = createServer(app);
 
-// Chemical proxy configuration - FIXED
+// Chemical proxy configuration
 const chemical = new ChemicalServer({
     default: "uv",
     uv: true,
     scramjet: true
 });
 
-// Serve static files
+// Serve YOUR static files (index.html, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// API endpoint for ChatGPT fallback
+// 🔥 IMPORTANT: Serve ChemicalJS client scripts from node_modules
+const chemicalDist = path.join(__dirname, 'node_modules', 'chemicaljs', 'dist');
+app.use('/chemical.js', express.static(path.join(chemicalDist, 'chemical.js')));
+app.use('/chemical.components.js', express.static(path.join(chemicalDist, 'chemical.components.js')));
+
+// API endpoint for ChatGPT fallback (optional)
 app.get('/api/chat', express.json(), async (req, res) => {
     const { prompt, apiKey } = req.query;
-    
     if (!apiKey) {
-        return res.json({ 
-            error: 'No API key provided. Get one at platform.openai.com/api-keys' 
-        });
+        return res.json({ error: 'No API key provided. Get one at platform.openai.com/api-keys' });
     }
-    
     try {
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -41,7 +42,6 @@ app.get('/api/chat', express.json(), async (req, res) => {
                 messages: [{ role: 'user', content: prompt }]
             })
         });
-        
         const data = await response.json();
         res.json(data);
     } catch (error) {
@@ -49,7 +49,7 @@ app.get('/api/chat', express.json(), async (req, res) => {
     }
 });
 
-// IMPORTANT FIX: ChemicalJS mounts differently
+// Proxy requests handler
 app.use((req, res, next) => {
     // Let Chemical handle proxy requests
     if (req.url.startsWith('/service/') || req.url.includes('bare')) {
@@ -66,6 +66,5 @@ server.listen(PORT, () => {
     console.log(`\n✨ Features enabled:`);
     console.log(`   ✅ Ultraviolet proxy engine`);
     console.log(`   ✅ Scramjet fallback engine`);
-    console.log(`   ✅ ChatGPT API fallback`);
-    console.log(`   ✅ About:Blank cloaking ready`);
+    console.log(`   ✅ ChemicalJS client scripts served`);
 });
